@@ -68,12 +68,15 @@ class period():
                 ends_minute_of_day.append(end_minute_of_day)
                 
             for weekdayAbbrev in weekdayAbbrev_string.split(','):
-                start_weekday = weekdaytime.intfweekday(weekdayAbbrev)
-                specific_predicates[start_weekday] = 1
-                for s, e in zip(starts_minute_of_day, ends_minute_of_day):
-                    start_weekdaytime = weekdaytime.from_min_of_week(start_weekday * 24 * 60 + s)
-                    end_weekdaytime = weekdaytime.from_min_of_week(start_weekday * 24 * 60 + e)
-                    ba |= period(start_weekdaytime, end_weekdaytime)._fba
+                try:
+                    start_weekday = weekdaytime.intfweekday(weekdayAbbrev)
+                    specific_predicates[start_weekday] = 1
+                    for s, e in zip(starts_minute_of_day, ends_minute_of_day):
+                        start_weekdaytime = weekdaytime.from_min_of_week(start_weekday * 24 * 60 + s)
+                        end_weekdaytime = weekdaytime.from_min_of_week(start_weekday * 24 * 60 + e)
+                        ba |= period(start_weekdaytime, end_weekdaytime)._fba
+                except Exception:
+                    pass
 
         # remaining days are filled with weekday-generic information
         for time_substring in generic_string.split(','):
