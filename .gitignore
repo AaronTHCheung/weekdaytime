@@ -1,0 +1,6 @@
+weekdaytime.egg-info/*
+dist/*
+setup.cfg
+test.py
+weekdaytime/__pycache__/*
+MANIFEST.in

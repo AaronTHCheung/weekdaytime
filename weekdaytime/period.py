@@ -1,72 +1,9 @@
 from bitarray import bitarray, frozenbitarray
 from bitarray.util import intervals
 import re
+from weekdaytime import weekdaytime
+from itertools import combinations
 
-class weekdaytime():
-    def __init__(self, weekday: int, hour: int, minute: int):
-        if not (isinstance(weekday, int) and 0 <= weekday and weekday <= 6):
-            raise Exception('weekday must be an integer between 0 and 6 inclusive')
-        self.weekday = weekday
-
-        if not (isinstance(hour, int) and 0 <= hour and hour <= 23):
-            raise Exception('hour must be an integer between 0 and 23 inclusive')
-        self.hour = hour
-
-        if not (isinstance(minute, int) and 0 <= minute and minute <= 59):
-            raise Exception('minute must be an integer between 0 and 59 inclusive')
-        self.minute = minute
-
-    @property
-    def min_of_week(self) -> int:
-        return self.weekday*24*60 + self.hour*60 + self.minute
-    
-    @staticmethod
-    def from_min_of_week(m: int):
-        wdt = weekdaytime(0, 0, 0)
-        wdt.add_minute(m)
-        return wdt
-    
-    @staticmethod
-    def strpweekday(weekday: int):
-        d = {0: 'Sun', 1: 'Mon', 2: 'Tue', 3: 'Wed', 4: 'Thu', 5: 'Fri', 6: 'Sat'}
-        if weekday not in d.keys(): raise Exception('weekday must be an integer between 0 and 6 inclusive')
-        return d[weekday]
-
-    @staticmethod
-    def intfweekday(weekdayAbbrev: str):
-        d = {'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6}
-        if weekdayAbbrev not in d.keys(): raise Exception('weekdayAbbrev must be one of ' + ','.join(d.keys()))
-        return d[weekdayAbbrev]
-
-    def add_day(self, day: int):
-        self.weekday = (self.weekday+day) % 7
-
-    def add_hour(self, hour: int):
-        hour += self.hour
-        self.hour = 0
-        day = hour // 24
-        new_hour = hour % 24
-        self.add_day(day)
-        self.hour = new_hour
-
-    def add_minute(self, minute: int):
-        minute += self.minute
-        self.minute = 0
-        hour = minute // 60
-        new_minute = minute % 60
-        self.add_hour(hour)
-        self.minute = new_minute
-
-    def add(self, **kwargs: int):
-        for k,v in kwargs.items():
-            if k == 'day': self.add_day(v)
-            if k == 'hour': self.add_hour(v)
-            if k == 'minute': self.add_minute(v)
-
-    def __str__(self):
-        return self.strpweekday(self.weekday) + ' ' + str(self.hour).zfill(2) + ':' + str(self.minute).zfill(2)
-
-    
 class period():
     def __init__(self, *args: weekdaytime):
         '''
@@ -104,8 +41,8 @@ class period():
         ba.setall(0)
 
         generic_string = ''
-        m = re.search(';?([0-9:~,]+);|$', string)
-        if m.group(0) != '':
+        m = re.search(';|^([0-9:~,]+);|$', string)
+        if m.group(0) != '' and m.groups()[0] is not None:
             # there is a weekday-generic part
             generic_string = m.group(1)
             specific_string = string[:m.span()[0]] + ';' + string[m.span()[1]:]
@@ -148,12 +85,18 @@ class period():
             if end_minute_of_day < start_minute_of_day: end_minute_of_day += 60 * 24  # across midnight
 
             for i in specific_predicates.search(0):
-                start_weekdaytime = weekdaytime.from_min_of_week(i * 24 * 60 + start_minute_of_day)
-                end_weekdaytime = weekdaytime.from_min_of_week(i * 24 * 60 + end_minute_of_day)
-                ba |= period(start_weekdaytime, end_weekdaytime)._fba
+                    start_weekdaytime = weekdaytime.from_min_of_week(i * 24 * 60 + start_minute_of_day)
+                    end_weekdaytime = weekdaytime.from_min_of_week(i * 24 * 60 + end_minute_of_day)
+                    ba |= period(start_weekdaytime, end_weekdaytime)._fba
 
         return period.from_bitarray(ba)
     
+    @staticmethod
+    def from_regulars(start_hour, start_minute, end_hour, end_minute, repeat_from, repeat_to):
+        return period(
+            *sum([[weekdaytime(i, start_hour, start_minute), weekdaytime(i, end_hour, end_minute)] for i in range(repeat_from, repeat_to+1)], [])
+        )
+
     def __and__(self, p):
         if not isinstance(p, period): 
             raise TypeError('at least one operands is not a valid weekdaytime.period')
@@ -168,16 +111,48 @@ class period():
         if isinstance(x, period):
             return sum(x._fba) == sum(self._fba & x._fba)
         
+    def __xor__(self, p):
+        if not isinstance(p, period): 
+            raise TypeError('at least one operands is not a valid weekdaytime.period')
+        return period.from_bitarray(self._fba ^ p._fba)
+    
+    def __invert__(self):
+        return period.from_bitarray(~self._fba)
+        
     def __str__(self):
+        weekdays_oneDayFba = [self._fba[i*24*60 : (i+1)*24*60] for i in range(7)]
+        A = [bitarray('0000000') for i in range(7)]
+        for i in range(7):
+            if sum(weekdays_oneDayFba[i]) > 0: A[i][i] = 1
+        for i, j in combinations(range(7), 2):
+            if sum(weekdays_oneDayFba[i] ^ weekdays_oneDayFba[j]) == 0 and sum(weekdays_oneDayFba[i]) > 0 and sum(weekdays_oneDayFba[j]) > 0:
+                # i, j have the same time period if we disregard the weekday
+                A[i][j] = 1
+
+        grouped_predicates = bitarray('0000000')
+        groups = []
+        for i in range(7):
+            if grouped_predicates[i]: continue
+            nonzero_idxs = A[i].search(1)
+            groups.append(set(nonzero_idxs))
+            for j in nonzero_idxs:
+                grouped_predicates[j] = 1
+        
         string = ''
-        for i, weekday in enumerate(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']):
-            weekday_fba = self._fba[i*24*60 : (i+1) * 24 * 60]
-            if sum(weekday_fba) == 0: continue
-            for value, start_mod, end_mod in intervals(weekday_fba):
-                if value == 0: continue
-                start_hour, start_minute = start_mod // 60, start_mod % 60
-                end_hour, end_minute = end_mod // 60, end_mod % 60
-                string += str(start_hour).zfill(2) + ':' + str(start_minute).zfill(2) + '~' + str(end_hour).zfill(2) + ':' + str(end_minute).zfill(2) + ','
-            string = string[:-1]  # remove the last ','
-            string += f'({weekday});'
-        return string[:-1]
+        for group in sorted(groups, key=len, reverse=True):
+            if len(group) == 0: break
+            itvs_true_string = [
+                str(x[1]//60).zfill(2) +  #  start_hour
+                ':' +
+                str(x[1]%60).zfill(2)  +  #  start_minute
+                '~' +
+                str(x[2]//60).zfill(2) +  #  end_hour
+                ':' +
+                str(x[2]%60).zfill(2)     #  end_minute
+            for x in intervals(weekdays_oneDayFba[next(iter(group))]) if x[0]]
+            string += ','.join(itvs_true_string)
+            string += '('
+            string += ','.join([weekdaytime.strpweekday(x) for x in group])
+            string += ');'
+            
+        return string[:-1]  # remove the last ';'
