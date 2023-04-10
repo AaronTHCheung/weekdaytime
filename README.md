@@ -13,15 +13,10 @@ This library includes Python classes for modelling available periods within a we
 ## Installation
 1. Python version must not be less than 3.6.
 2. The dependent library `bitarray` requires Microsoft Visual C++ 14.0. Get it with "Microsoft Visual C++ Build Tools": https://visualstudio.microsoft.com/downloads/
-3. 
-    - Install with pip using the command
-        ```
-        pip install weekdaytime
-        ```
-    - Alternatively, the library can also be installed with anaconda using the command
-        ```
-        conda install weekdaytime
-        ```
+3. Install with pip using the command
+    ```
+    pip install weekdaytime
+    ```
 
 ## Usage
 ### weekdaytime class
