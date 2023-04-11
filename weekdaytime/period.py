@@ -41,7 +41,7 @@ class period():
         ba.setall(0)
 
         generic_string = ''
-        m = re.search(';|^([0-9:~,]+);|$', string)
+        m = re.search(';|^([0-9:~,]+)(;|$)', string)
         if m.group(0) != '' and m.groups()[0] is not None:
             # there is a weekday-generic part
             generic_string = m.group(1)

@@ -4,7 +4,7 @@ from pathlib import Path
 long_description = (Path(__file__).parent/'README.md').read_text()
 setup(
     name='weekdaytime',
-    version='0.0.11',
+    version='0.0.12',
     description='Python library that models available periods in a week',
     long_description=long_description,
     long_description_content_type='text/markdown',

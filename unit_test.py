@@ -28,5 +28,8 @@ class Test(unittest.TestCase):
         self.assertEqual(p1._fba, p2._fba)
         self.assertEqual(str(p1), '09:00~15:00,17:00~21:00(Mon,Tue,Thu);00:00~02:00,09:00~21:00(Sun);12:00~24:00(Fri);00:00~02:00,12:00~24:00(Sat)')
 
+        p3 = period.strpperiod('09:00~14:30,16:30~21:00')
+        self.assertEqual(str(p3), '09:00~14:30,16:30~21:00(Sun,Mon,Tue,Wed,Thu,Fri,Sat)')
+
 if __name__ == '__main__':
     unittest.main()
