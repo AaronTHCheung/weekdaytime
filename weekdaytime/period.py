@@ -3,6 +3,7 @@ from bitarray.util import intervals
 import re
 from weekdaytime import weekdaytime
 from itertools import combinations
+from typing import List,Dict
 
 class period():
     def __init__(self, *args: weekdaytime):
@@ -34,6 +35,46 @@ class period():
         else:
             raise Exception('argument is not a valid bitarray instance with size 60*24*7')
         
+    # New in version 0.1.0
+    @staticmethod
+    def from_googlemaps_periods(gperiods: List[Dict]):
+        mows = []
+        open_predicates = []
+        for gperiod in gperiods:
+            for k,v in gperiod.items():
+                weekday = v['day']
+                hour = int(v['time'][:2])
+                minute = int(v['time'][2:])
+                mows.append(weekday*24*60 + hour*60 + minute)
+                open_predicates.append(True if k=='open' else False)
+
+        ba = bitarray(60*24*7)        
+        # check if even number of mows, if not then the resulting period is available 24/7
+        if len(mows) % 2 != 0:
+            ba.setall(1)
+            return period.from_bitarray(ba)
+        
+        ba.setall(0)
+        sort_idxs = [i[0] for i in sorted(enumerate(mows), key=lambda x: x[1])]
+        for i in range(len(mows)//2):
+            idx_open  = sort_idxs[2*i]
+            idx_close = sort_idxs[2*i+1]
+            open_predicate_open = open_predicates[idx_open]
+            open_predicate_close = open_predicates[idx_close]
+
+            if open_predicate_open == True and open_predicate_close == False:
+                # open close check passed, fill ba
+                mow_open = mows[idx_open]
+                mow_close = mows[idx_close]
+                ba |= period(weekdaytime.from_min_of_week(mow_open),
+                             weekdaytime.from_min_of_week(mow_close))._fba
+            else:
+                # some opens have no closes
+                raise Exception('Invalid input google maps api response periods')
+
+        return period.from_bitarray(ba)
+        
+
     @staticmethod
     def strpperiod(string: str):
         # string example: 09:00~15:00,17:00~20:00;14:00~02:00(Fri);12:00~20:00(Sat,Sun)

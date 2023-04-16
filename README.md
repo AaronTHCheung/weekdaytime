@@ -9,6 +9,7 @@ This library includes Python classes for modelling available periods within a we
     evaluates to True if and only if ```visit_period``` is within ```available_period```.
 - Manipulate period objects with bitwise operators (```|, &, ~, ^```)
 - Convert period string into a period object, and vise versa (e.g., `'09:00~15:00,17:00~21:00;15:00~02:00(Fri,Sat)'`)
+- (*New in version 0.1.0*) A period can be instantiated with JSON dictionary obtained as the ```opening_hours/periods``` field in a Google Maps Places (Details) API response (https://developers.google.com/maps/documentation/places/web-service/details#PlaceOpeningHours)
 
 ## Installation
 1. Python version must not be less than 3.6.
@@ -121,4 +122,26 @@ print(p)  # '09:00~15:00,17:00~21:00(Mon,Tue,Thu);00:00~02:00,09:00~21:00(Sun);1
 avail_string = '09:00~15:00,17:00~21:00(Mon,Tue,Thu);12:00~02:00(Fri,Sat);09:00~21:00(Sun)'
 p = period.strpperiod(avail_string)
 print(p)  # '09:00~15:00,17:00~21:00(Mon,Tue,Thu);00:00~02:00,09:00~21:00(Sun);12:00~24:00(Fri);00:00~02:00,12:00~24:00(Sat)'
+```
+
+---
+*New in version 0.1.0*
+
+A period can be instantiated with JSON dictionary obtained as the ```opening_hours/periods``` field in a Google Maps Places (Details) API response (https://developers.google.com/maps/documentation/places/web-service/details#PlaceOpeningHours)
+```
+from weekdaytime import period
+
+gperiods1 = [{'open': {'day': 0, 'time': '0000'}}]
+gperiods2 = [{'close': {'day': 1, 'time': '2100'}, 'open': {'day': 1, 'time': '0900'}}, 
+             {'close': {'day': 2, 'time': '2100'}, 'open': {'day': 2, 'time': '0900'}}, 
+             {'close': {'day': 3, 'time': '2100'}, 'open': {'day': 3, 'time': '0900'}}, 
+             {'close': {'day': 4, 'time': '2100'}, 'open': {'day': 4, 'time': '0900'}}, 
+             {'close': {'day': 5, 'time': '2100'}, 'open': {'day': 5, 'time': '0900'}}, 
+             {'close': {'day': 6, 'time': '1800'}, 'open': {'day': 6, 'time': '0900'}}]
+
+p1 = period.from_googlemaps_periods(gperiods1)
+p2 = period.from_googlemaps_periods(gperiods2)
+
+print(p1)    # '00:00~24:00(Sun,Mon,Tue,Wed,Thu,Fri,Sat)'
+print(p2)    # '09:00~21:00(Mon,Tue,Wed,Thu,Fri);09:00~18:00(Sat)'
 ```
